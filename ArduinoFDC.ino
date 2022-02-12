@@ -22,7 +22,7 @@
 
 
 // comment this out to remove high-level ArduDOS functions
-#define USE_ARDUDOS
+//#define USE_ARDUDOS
 
 // commenting this out will remove the low-level disk monitor
 #define USE_MONITOR
@@ -135,6 +135,8 @@ void print_drive_type(byte n)
     case ArduinoFDCClass::DT_5_HD: Serial.print(F("5.25\" HD")); break;
     case ArduinoFDCClass::DT_3_DD: Serial.print(F("3.5\" DD")); break;
     case ArduinoFDCClass::DT_3_HD: Serial.print(F("3.5\" HD")); break;
+    case ArduinoFDCClass::DT_TRD40: Serial.print(F("3.5\" 40")); break;
+    case ArduinoFDCClass::DT_TRD80: Serial.print(F("3.5\" 80")); break;
     default: Serial.print(F("Unknown"));
     }
 }
@@ -937,7 +939,7 @@ void monitor()
           Serial.println(F("B [n]    Fill buffer with 'n' or 00..FF if n not given"));
           Serial.println(F("m 0/1    Turn drive motor off/on"));
           Serial.println(F("s 0/1    Select drive A/B"));
-          Serial.println(F("t 0-4    Set type of current drive (5.25DD/5.25DDinHD/5.25HD/3.5DD/3.5HD)"));
+          Serial.println(F("t 0-6    Set type of current drive (5.25DD/5.25DDinHD/5.25HD/3.5DD/3.5HD/3.5T40/3.5T80)"));
           Serial.println(F("f        Low-level format disk (tf)"));
 #ifdef USE_XMODEM
           Serial.println(F("S        Read disk image and send via XModem"));

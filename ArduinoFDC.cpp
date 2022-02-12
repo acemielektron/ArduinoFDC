@@ -209,22 +209,24 @@ struct DriveGeometryStruct
   byte numTracks;
   byte numSectors;
   byte dataGap;
-  byte trackSpacing;
+  byte trackSpacing;  
 };
 
 
-static struct DriveGeometryStruct geometry[5] =
+static struct DriveGeometryStruct geometry[7] =
   {
     {40,  9,  80, 1},  // 5.25" DD (360 KB)
     {40,  9,  80, 2},  // 5.25" DD disk in HD drive (360 KB)
     {80, 15,  85, 1},  // 5.25" HD (1.2 MB)
     {80,  9,  80, 1},  // 3.5"  DD (720 KB)
-    {80, 18, 100, 1}   // 3.5"  HD (1.44 MB)
+    {80, 18, 100, 1},  // 3.5"  HD (1.44 MB)
+    {40, 16,  80, 1},  // 3.5"  double density (327680 bytes)
+    {80, 16,  80, 1}   // 3.5"  double density (655360 bytes)
   };
 
 
 // un-commenting this will write more detailed error information to Serial
-//#define DEBUG
+#define DEBUG
 
 ArduinoFDCClass ArduinoFDC;
 static byte header[7];
@@ -1404,6 +1406,8 @@ byte ArduinoFDCClass::getBitLength()
         case DT_3_DD: bitLength = 32; break;
         case DT_5_HD: bitLength = 16; break;
         case DT_5_DD: bitLength = 32; break;
+        case DT_TRD40:  
+        case DT_TRD80:  bitLength = 32; break;
 
         case DT_5_DDonHD:
           {
@@ -1440,11 +1444,28 @@ byte ArduinoFDCClass::getBitLength()
   return m_bitLength[m_currentDrive];
 }
 
+byte ArduinoFDCClass::getSectorSize()
+{
+  byte sectorSize = 0;  //0:128, 1:256, 2:512, 3:1024 bytes
+  
+  switch( m_driveType[m_currentDrive] )
+    {
+      case DT_3_HD: 
+      case DT_3_DD: 
+      case DT_5_HD: 
+      case DT_5_DD: 
+      case DT_5_DDonHD: sectorSize = 2; break;
+      case DT_TRD40:  
+      case DT_TRD80:  sectorSize = 1; break;        
+    }
+  return sectorSize;        
+}
 
 byte ArduinoFDCClass::readSector(byte track, byte side, byte sector, byte *buffer)
 {
   byte res = S_OK;
   byte driveType = m_driveType[m_currentDrive];
+  uint16_t sectorSizeN = 128 << getSectorSize();
 
   // do some sanity checks
   if( !m_initialized )
@@ -1485,7 +1506,7 @@ byte ArduinoFDCClass::readSector(byte track, byte side, byte sector, byte *buffe
       if( res==S_OK )
         {
           // wait for data sync mark and read data
-          if( read_data(bitLength, buffer, 515, false)==S_OK )
+          if( read_data(bitLength, buffer, sectorSizeN+3, false)==S_OK )
             {
               if( buffer[0]!=0xFB )
                 { 
@@ -1496,10 +1517,10 @@ byte ArduinoFDCClass::readSector(byte track, byte side, byte sector, byte *buffe
 #endif
                   res = S_INVALIDID;
                 }
-              else if( calc_crc(buffer, 513) != 256u*buffer[513]+buffer[514] )
+              else if( calc_crc(buffer, sectorSizeN+1) != 256u*buffer[sectorSizeN+1]+buffer[sectorSizeN+2] )
                 { 
 #ifdef DEBUG
-                  Serial.print(F("Data CRC error. Found: ")); Serial.print(256u*buffer[513]+buffer[514], HEX); Serial.print(", expected: "); Serial.println(calc_crc(buffer, 513), HEX);
+                  Serial.print(F("Data CRC error. Found: ")); Serial.print(256u*buffer[sectorSizeN+1]+buffer[sectorSizeN+2], HEX); Serial.print(", expected: "); Serial.println(calc_crc(buffer, sectorSizeN+1), HEX);
 #endif
                   res = S_CRC; 
                 }
@@ -1527,6 +1548,7 @@ byte ArduinoFDCClass::writeSector(byte track, byte side, byte sector, byte *buff
 {
   byte res = S_OK;
   byte driveType = m_driveType[m_currentDrive];
+  uint16_t sectorSizeN = 128 << getSectorSize();
 
   // do some sanity checks
   if( !m_initialized )
@@ -1562,10 +1584,10 @@ byte ArduinoFDCClass::writeSector(byte track, byte side, byte sector, byte *buff
     {
       // calculate CRC for the sector data
       buffer[0]   = 0xFB; // "data" id
-      uint16_t crc = calc_crc(buffer, 513);
-      buffer[513] = crc/256;
-      buffer[514] = crc&255;
-      buffer[515] = 0x4E; // first byte of post-data gap
+      uint16_t crc = calc_crc(buffer, sectorSizeN+1);
+      buffer[sectorSizeN+1] = crc/256;
+      buffer[sectorSizeN+2] = crc&255;
+      buffer[sectorSizeN+3] = 0x4E; // first byte of post-data gap
   
       // writing data is time sensitive so we can't have interrupts
       noInterrupts();
@@ -1577,7 +1599,7 @@ byte ArduinoFDCClass::writeSector(byte track, byte side, byte sector, byte *buff
       if( res==S_OK )
         {
           // write the sector data
-          write_data(bitLength, buffer, 516);
+          write_data(bitLength, buffer, sectorSizeN+4);
           
           // if we are supposed to verify the data then do so now
           if( verify )
@@ -1586,7 +1608,7 @@ byte ArduinoFDCClass::writeSector(byte track, byte side, byte sector, byte *buff
               res = wait_header(bitLength, track, side, sector);
               
               // wait for data sync mark and compare the data
-              if( res==S_OK ) res = read_data(bitLength, buffer, 515, true);
+              if( res==S_OK ) res = read_data(bitLength, buffer, sectorSizeN+3, true);
             }
         }
 
