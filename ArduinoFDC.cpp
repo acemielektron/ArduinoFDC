@@ -1465,7 +1465,7 @@ byte ArduinoFDCClass::readSector(byte track, byte side, byte sector, byte *buffe
 {
   byte res = S_OK;
   byte driveType = m_driveType[m_currentDrive];
-  uint16_t sectorSizeN = 128 << getSectorSize();
+  uint16_t sectorSizeN = sectorSize();
 
   // do some sanity checks
   if( !m_initialized )
@@ -1548,7 +1548,7 @@ byte ArduinoFDCClass::writeSector(byte track, byte side, byte sector, byte *buff
 {
   byte res = S_OK;
   byte driveType = m_driveType[m_currentDrive];
-  uint16_t sectorSizeN = 128 << getSectorSize();
+  uint16_t sectorSizeN = sectorSize();
 
   // do some sanity checks
   if( !m_initialized )

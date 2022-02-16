@@ -124,12 +124,15 @@ class ArduinoFDCClass
 
   // Returns true if the disk drive motor is currently running
   bool motorRunning() const;
-
+  
+  // Returns sector size in bytes
+  uint16_t sectorSize(){return (128 << getSectorSize()); }
+  
  private:
   void driveSelect(bool state) const;
   void setDensityPin();
   byte getBitLength();
-  byte getSectorSize();
+  byte getSectorSize(); //0: 128 bytes, 1: 256 bytes, 2:512 bytes, 3: 1024 bytes
 
   enum DriveType m_driveType[2];
   enum DensityPinMode m_densityPinMode[2];

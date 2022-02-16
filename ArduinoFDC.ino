@@ -702,7 +702,7 @@ void monitor()
               byte status = ArduinoFDC.readSector(track, head, sector, databuffer);
               if( status==S_OK )
                 {
-                  dump_buffer(0, databuffer+1, 512);
+                  dump_buffer(0, databuffer+1, ArduinoFDC.sectorSize());
                   Serial.println();
                 }
               else
